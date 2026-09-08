@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZINE損益計算機</title>
+<style>
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111;
+  background: #f5f5f5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.container { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 64px; }
+.hero { margin-bottom: 28px; }
+.eyebrow { font-size: 12px; letter-spacing: .12em; font-weight: 700; margin: 0 0 8px; }
+h1 { font-size: clamp(36px, 7vw, 64px); line-height: 1; margin: 0 0 16px; }
+h2 { margin-top: 0; }
+.lead, .muted, footer { color: #666; }
+.card, .result-card { background: white; border: 1px solid #ddd; border-radius: 18px; padding: 22px; }
+.card { margin-bottom: 20px; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+label { display: grid; gap: 7px; font-size: 14px; font-weight: 650; }
+input[type="number"] {
+  width: 100%; padding: 12px 14px; border: 1px solid #ccc; border-radius: 10px; font-size: 16px;
+}
+button {
+  width: 100%; margin-top: 20px; padding: 14px 18px; border: 0; border-radius: 12px;
+  font-size: 16px; font-weight: 700; cursor: pointer; background: #111; color: white;
+}
+.results { margin-bottom: 20px; }
+.primary { margin-bottom: 14px; text-align: center; padding: 30px 22px; }
+.primary strong { display: block; font-size: clamp(38px, 8vw, 70px); margin: 8px 0; }
+.label { display: block; font-size: 13px; color: #666; }
+.result-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.result-card strong { display: block; margin-top: 6px; font-size: 20px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px 10px; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+.slider-row { display: flex; align-items: center; gap: 16px; }
+.slider-row input { flex: 1; }
+.big-number { font-size: 40px; font-weight: 800; margin: 18px 0 0; }
+.positive { color: #147a33; }
+.negative { color: #b42318; }
+footer { font-size: 12px; margin-top: 30px; }
+
+@media (max-width: 700px) {
+  .container { width: min(100% - 20px, 920px); padding-top: 28px; }
+  .grid { grid-template-columns: 1fr; }
+  .result-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+
+<body>
+<main class="container">
+  <section class="hero">
+    <p class="eyebrow">WEB 自販機 0号機</p>
+    <h1>ZINE損益計算機</h1>
+    <p class="lead">何冊売れば黒字になる？ 費用と販売価格を入れるだけで計算します。</p>
+  </section>
+
+  <section class="card">
+    <div class="grid">
+      <label>印刷費（円）<input id="printingCost" type="number" min="0" value="30000"></label>
+      <label>出店料（円）<input id="boothFee" type="number" min="0" value="7000"></label>
+      <label>交通費（円）<input id="transportCost" type="number" min="0" value="0"></label>
+      <label>その他経費（円）<input id="otherCost" type="number" min="0" value="3000"></label>
+      <label>販売価格（1冊・円）<input id="salePrice" type="number" min="1" value="1000"></label>
+      <label>1冊あたり手数料（円）<input id="feePerBook" type="number" min="0" value="0"></label>
+      <label>作成部数<input id="quantity" type="number" min="1" value="100"></label>
+    </div>
+    <button id="calculateBtn" type="button">計算する</button>
+  </section>
+
+  <section class="results">
+    <div class="result-card primary">
+      <span class="label">損益分岐</span>
+      <strong id="breakEven">—</strong>
+      <small id="breakEvenNote">—</small>
+    </div>
+
+    <div class="result-grid">
+      <div class="result-card"><span class="label">総コスト</span><strong id="totalCost">—</strong></div>
+      <div class="result-card"><span class="label">1冊あたり原価</span><strong id="costPerBook">—</strong></div>
+      <div class="result-card"><span class="label">完売時の売上</span><strong id="totalRevenue">—</strong></div>
+      <div class="result-card"><span class="label">完売時の利益</span><strong id="totalProfit">—</strong></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>販売価格を変えると？</h2>
+    <p class="muted">現在価格の80%・100%・120%で比較します。</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>販売価格</th><th>損益分岐</th><th>完売時利益</th></tr></thead>
+        <tbody id="priceTable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>冊数ごとの利益</h2>
+    <div class="slider-row">
+      <input id="soldSlider" type="range" min="0" max="100" value="40">
+      <strong id="soldCount">40冊</strong>
+    </div>
+    <p class="big-number" id="profitAtSold">—</p>
+    <p class="muted">売れた冊数に応じた利益（または赤字）です。</p>
+  </section>
+
+  <footer>
+    ※簡易シミュレーターです。実際の決済手数料・送料・税金等は条件に応じて追加してください。
+  </footer>
+</main>
+
+<script>
+(function () {
+  const inputIds = [
+    "printingCost","boothFee","transportCost","otherCost",
+    "salePrice","feePerBook","quantity"
+  ];
+
+  function yen(n) {
+    return Math.round(n).toLocaleString("ja-JP") + "円";
+  }
+
+  function value(id) {
+    const el = document.getElementById(id);
+    const n = Number(el.value);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function getData() {
+    return {
+      printingCost: Math.max(0, value("printingCost")),
+      boothFee: Math.max(0, value("boothFee")),
+      transportCost: Math.max(0, value("transportCost")),
+      otherCost: Math.max(0, value("otherCost")),
+      salePrice: Math.max(1, value("salePrice")),
+      feePerBook: Math.max(0, value("feePerBook")),
+      quantity: Math.max(1, Math.floor(value("quantity")))
+    };
+  }
+
+  function compute(priceOverride) {
+    const d = getData();
+    const salePrice = (priceOverride === undefined || priceOverride === null)
+      ? d.salePrice
+      : priceOverride;
+
+    const totalCost = d.printingCost + d.boothFee + d.transportCost + d.otherCost;
+    const netPerBook = salePrice - d.feePerBook;
+    const breakEven = netPerBook > 0 ? Math.ceil(totalCost / netPerBook) : Infinity;
+    const totalRevenue = salePrice * d.quantity;
+    const totalFees = d.feePerBook * d.quantity;
+    const totalProfit = totalRevenue - totalFees - totalCost;
+    const costPerBook = totalCost / d.quantity;
+
+    return Object.assign({}, d, {
+      salePrice, totalCost, netPerBook, breakEven,
+      totalRevenue, totalProfit, costPerBook
+    });
+  }
+
+  function paintProfit(el, amount) {
+    el.textContent = (amount >= 0 ? "+" : "") + yen(amount);
+    el.classList.toggle("positive", amount >= 0);
+    el.classList.toggle("negative", amount < 0);
+  }
+
+  function updateSoldProfit() {
+    const r = compute();
+    const slider = document.getElementById("soldSlider");
+    const sold = Number(slider.value);
+    const profit = sold * r.netPerBook - r.totalCost;
+
+    document.getElementById("soldCount").textContent = sold + "冊";
+    paintProfit(document.getElementById("profitAtSold"), profit);
+  }
+
+  function calculate() {
+    const r = compute();
+
+    document.getElementById("totalCost").textContent = yen(r.totalCost);
+    document.getElementById("costPerBook").textContent = yen(r.costPerBook);
+    document.getElementById("totalRevenue").textContent = yen(r.totalRevenue);
+    paintProfit(document.getElementById("totalProfit"), r.totalProfit);
+
+    const breakEvenEl = document.getElementById("breakEven");
+    const noteEl = document.getElementById("breakEvenNote");
+
+    if (!Number.isFinite(r.breakEven)) {
+      breakEvenEl.textContent = "計算不可";
+      noteEl.textContent = "販売価格が1冊あたり手数料以下です。";
+    } else {
+      breakEvenEl.textContent = r.breakEven.toLocaleString("ja-JP") + "冊";
+      noteEl.textContent = r.breakEven <= r.quantity
+        ? "全" + r.quantity + "冊のうち " + r.breakEven + "冊 売れると黒字化"
+        : "完売しても黒字化しません（必要：" + r.breakEven + "冊）";
+    }
+
+    const tbody = document.getElementById("priceTable");
+    tbody.innerHTML = "";
+
+    [0.8, 1, 1.2].forEach(function(mult) {
+      const price = Math.max(1, Math.round(r.salePrice * mult / 10) * 10);
+      const x = compute(price);
+
+      const tr = document.createElement("tr");
+      const tdPrice = document.createElement("td");
+      const tdBreak = document.createElement("td");
+      const tdProfit = document.createElement("td");
+
+      tdPrice.textContent = yen(price);
+      tdBreak.textContent = Number.isFinite(x.breakEven) ? x.breakEven + "冊" : "—";
+      tdProfit.textContent = (x.totalProfit >= 0 ? "+" : "") + yen(x.totalProfit);
+      tdProfit.className = x.totalProfit >= 0 ? "positive" : "negative";
+
+      tr.appendChild(tdPrice);
+      tr.appendChild(tdBreak);
+      tr.appendChild(tdProfit);
+      tbody.appendChild(tr);
+    });
+
+    const slider = document.getElementById("soldSlider");
+    slider.max = r.quantity;
+    if (Number(slider.value) > r.quantity) slider.value = r.quantity;
+
+    updateSoldProfit();
+  }
+
+  document.getElementById("calculateBtn").addEventListener("click", calculate);
+  document.getElementById("soldSlider").addEventListener("input", updateSoldProfit);
+
+  inputIds.forEach(function(id) {
+    document.getElementById(id).addEventListener("input", calculate);
+  });
+
+  calculate();
+})();
+</script>
+</body>
+</html>
